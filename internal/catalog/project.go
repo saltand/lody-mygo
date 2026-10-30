@@ -802,16 +802,13 @@ func projectMeta(rows []flock.Row) Catalog {
 			s.PRState[url] = PRState{CI: text(st["s"]), Merge: text(st["m"])}
 		}
 		c.Sessions = append(c.Sessions, s)
-		if localID != "" || repo != "" {
-			name := repo
-			if name == "" {
-				name = "Local project"
-			}
-			githubRepo := repo
-			if githubRepo == "" {
-				githubRepo = text(project["githubRepoFullName"])
-			}
-			c.Projects = append(c.Projects, Project{ID: projectID, MachineID: machineID, Name: name, RepoFullName: githubRepo})
+		// A GitHub session files itself under its repository, as Lody's
+		// GitHub Worktrees group does. A local one does not: its project
+		// row comes from the machine's localProjects alone, so a session
+		// of a project the machine no longer publishes lands with the
+		// ungrouped chats instead of making a nameless project row.
+		if repo != "" {
+			c.Projects = append(c.Projects, Project{ID: projectID, MachineID: machineID, Name: repo, RepoFullName: repo})
 		}
 	}
 	c.Projects = uniqueProjects(c.Projects)

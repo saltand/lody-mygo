@@ -48,6 +48,24 @@ func TestProjectMeta(t *testing.T) {
 	}
 }
 
+// A session that names a local project its machine no longer publishes
+// files with the ungrouped chats; it makes no nameless project row.
+func TestProjectGhostLocal(t *testing.T) {
+	rows := []flock.Row{
+		row(true, "e", "machine-m1"),
+		row(true, "e", "session-s1"),
+		row(map[string]any{"name": "Studio", "localProjects": map[string]any{}}, "m", "machine-m1"),
+		row(map[string]any{"id": "s1", "machineId": "m1", "title": "Old", "createdAt": "2026-10-01T00:00:00Z", "project": map[string]any{"kind": "local", "localProjectId": "gone"}}, "m", "session-s1"),
+	}
+	c := merge(projectMeta(rows), map[string]Catalog{"m1": projectMachine(nil, "m1")})
+	if s := c.Session("s1"); s == nil || s.ProjectID != "m1:local:gone" {
+		t.Fatalf("s1 = %+v", s)
+	}
+	if p := c.Project("m1:local:gone"); p != nil {
+		t.Fatalf("ghost project = %+v", p)
+	}
+}
+
 func TestProjectMCPKey(t *testing.T) {
 	if got := ProjectMCPKey("m1", "p1"); got != `["v1","local","m1","p1"]` {
 		t.Fatalf("key = %s", got)
