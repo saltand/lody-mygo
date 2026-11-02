@@ -82,10 +82,7 @@ func (a *App) mainView(c *ui.Context, p *palette) {
 	a.joinWorkspaceDialog(c, p)
 	a.pairingDialog(c, p)
 	a.magpieDialog(c, p)
-	a.shareDialogView(c, p)
 	a.deviceAuthDialog(c, p)
-	a.messageShareDialog(c, p)
-	a.shareImageDialog(c, p)
 	a.filePreviewDialog(c, p)
 	a.scheduleSendDialog(c, p)
 	// Deleting a session for good asks here, whichever menu asked.
@@ -119,7 +116,6 @@ func (a *App) tabBar(c *ui.Context, p *palette, sess *catalog.Session) {
 			if s.Archived {
 				archivedBadge(c, p)
 			}
-			a.accessControl(c, p, sess)
 			a.headerMenu(c, p, s)
 			if a.localMachine() != "" {
 				iconButton(c, p, iconSquareTerminal, locales.TerminalToggle(), p.Hover).OnClick(a.toggleTerminal)
@@ -234,9 +230,6 @@ func (a *App) conversation(c *ui.Context, p *palette, sess *catalog.Session) {
 	}
 	entries := foldNotices(v.Entries)
 	a.outline.prepare(a.selected)
-	// While messages are picked to share, their text is not selected: a
-	// press on it picks the message, as Lody's rows are select-none.
-	a.md.ShareSelection = a.shareImg.picking(a.selected)
 	a.indexFind(entries)
 	// The messages held on their way follow what is written, as Lody's
 	// trailing rows, each keyed by the turn it becomes, which takes its
@@ -317,11 +310,8 @@ func (a *App) conversation(c *ui.Context, p *palette, sess *catalog.Session) {
 		a.chatMotion.viewH = list.Bounds().H
 		a.outline.top = list.Bounds().Y
 		a.chatEdges(c, p, v, len(entries))
-		a.shareMarquee(c, p)
 	})
-	if !a.shareSelectionBar(c, p, sess) {
-		a.bottom(c, p, sess, v)
-	}
+	a.bottom(c, p, sess, v)
 	a.outlineRail(c, p, entries)
 	a.findBar(c, p)
 }
@@ -451,10 +441,6 @@ func (a *App) entry(c *ui.Context, p *palette, entries []session.Entry, i int) u
 			}
 		})
 	}
-	if a.shareImg.picking(a.selected) {
-		// Messages are being picked to share as an image.
-		return a.shareRow(c, p, entries, i, row)
-	}
 	return row().Padding(entryTop(entries, i), 0, 0, 0)
 }
 
@@ -568,9 +554,7 @@ func (a *App) userMessage(c *ui.Context, p *palette, e session.Entry) {
 						sendingSpinner(c, p)
 					}
 					body := a.userBody(c, p, e, text)
-					if !a.shareImg.picking(a.selected) {
-						body.Selectable()
-					}
+					body.Selectable()
 					body.FontSize(a.convFontSize()).LineHeight(24.0 / 14).TextColor(p.Reading)
 					if long && !open {
 						body.MaxLines(8)

@@ -500,9 +500,9 @@ func TestImageViewerMenu(t *testing.T) {
 	orig.data, orig.mime = buf.Bytes(), "image/jpeg"
 	tt := viewerTester(a, 640, 400)
 	var copied []byte
-	oldClip := shareImageClipboard
-	shareImageClipboard = func(b []byte) error { copied = b; return nil }
-	defer func() { shareImageClipboard = oldClip }()
+	oldClip := clipImageClipboard
+	clipImageClipboard = func(b []byte) error { copied = b; return nil }
+	defer func() { clipImageClipboard = oldClip }()
 	tt.RightClickAt(320, 200)
 	if menu := tt.Menu(); !slices.Equal(menu, []string{locales.ImagePreviewCopy(), locales.ImagePreviewSave()}) {
 		t.Fatalf("menu %q", menu)
@@ -518,7 +518,7 @@ func TestImageViewerMenu(t *testing.T) {
 		t.Fatalf("no toast: %q", tt.Texts())
 	}
 	// A clipboard that won't take it.
-	shareImageClipboard = func([]byte) error { return errors.New("clipboard busy") }
+	clipImageClipboard = func([]byte) error { return errors.New("clipboard busy") }
 	tt.RightClickAt(320, 200)
 	if err := tt.ChooseMenuItem(locales.ImagePreviewCopy()); err != nil {
 		t.Fatal(err)
@@ -531,9 +531,9 @@ func TestImageViewerMenu(t *testing.T) {
 	wait := pumpUpdates(t, a)
 	var asked string
 	answer := ""
-	oldSave := shareImageSaveDialog
-	shareImageSaveDialog = func(_ *mygo.Window, name string) (string, error) { asked = name; return answer, nil }
-	defer func() { shareImageSaveDialog = oldSave }()
+	oldSave := saveFileDialog
+	saveFileDialog = func(_ *mygo.Window, name string) (string, error) { asked = name; return answer, nil }
+	defer func() { saveFileDialog = oldSave }()
 	tt.RightClickAt(320, 200)
 	if err := tt.ChooseMenuItem(locales.ImagePreviewSave()); err != nil {
 		t.Fatal(err)

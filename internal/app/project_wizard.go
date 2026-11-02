@@ -689,7 +689,7 @@ func pickList(c *ui.Context, p *palette, key string, rows []pickRow, empty strin
 			// it; told by the row, as a tip of the line would take its press.
 			lodyTooltip(c, p, row, r.detail)
 			row.Children(func() {
-				shareCheckbox(c, p, r.selected)
+				lodyCheckbox(c, p, "check", r.selected, false)
 				ui.Icon(c, r.icon).Size(14, 14).TextColor(p.Secondary).Shrink(0)
 				ui.Column(c).Grow(1).MinWidth(0).Gap(1).Children(func() {
 					ui.Text(c, r.label).FontSize(sizeSub).TextColor(p.Text).SingleLine()

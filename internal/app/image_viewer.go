@@ -935,7 +935,7 @@ func (v *imageViewer) move(offset int) {
 func (a *App) copyViewerImage(pic *remoteImage) {
 	data, err := viewerPNG(pic.data, pic.mime)
 	if err == nil {
-		err = shareImageClipboard(data)
+		err = clipImageClipboard(data)
 	}
 	if err != nil {
 		a.toasts = append(a.toasts, ui.Toast{Type: "danger", Title: locales.ImagePreviewCopyFailed(), Description: err.Error()})
@@ -951,7 +951,7 @@ func (a *App) saveViewerImage(pic *remoteImage, fileName string) {
 	data, win := pic.data, a.win
 	name := exportFileName(fileName, pictureType(pic.data, pic.mime))
 	go func() {
-		path, err := shareImageSaveDialog(win, name)
+		path, err := saveFileDialog(win, name)
 		if err == nil && path == "" {
 			return
 		}

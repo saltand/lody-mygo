@@ -773,19 +773,9 @@ func TestCloudSettings(t *testing.T) {
 	seed("members", `[{"id":"mem1","userId":"u1","role":"owner","user":{"id":"u1","name":"Ada Lovelace","email":"ada@example.com"}},
 		{"id":"mem2","userId":"u2","role":"member","user":{"id":"u2","name":"Grace Hopper","email":"grace@example.com"}}]`, &[]cloud.Member{})
 	seed("machines", `[{"machineId":"m1","ownerUserId":"u1","sharedWithTeam":true,"updatedAt":1}]`, &[]visibleMachine{})
-	seed("usage/day", `{"totals":{"tokens":1500000,"costUSD":12.34},"users":{"u2":{"name":"Grace Hopper"}},
-		"buckets":[{"bucketStartMs":0,"bucketLabel":"Oct 1","tokens":500000,"costUSD":4,"byModel":[{"modelId":"claude-opus-5-5","tokens":500000,"costUSD":4}],"byUser":[{"userId":"u1","tokens":500000,"costUSD":4}]},
-		{"bucketStartMs":1,"bucketLabel":"Oct 2","tokens":1000000,"costUSD":8.34,"byModel":[{"modelId":"gpt-5","tokens":1000000,"costUSD":8.34}],"byUser":[{"userId":"u2","tokens":1000000,"costUSD":8.34}]}]}`, &usageTimeline{})
-	var billing *billingOverview
-	seed("billing", `{"billingAccountId":null,"planTier":"plus","effectivePlanTier":"plus","billingInterval":"month","nextBillingAt":1798804800000,"seatCount":2.0,"canManageBilling":true,"cancelAtPeriodEnd":false}`, &billing)
-	a.fetches[a.workspaceID+"|billing"].value = billing
 	var repos *[]workspaceRepo
 	seed("github", `[{"repoFullName":"lbr77/lody-mygo","name":"lody-mygo","repositoryId":1,"private":true,"enabled":true}]`, &repos)
 	a.fetches[a.workspaceID+"|github"].value = repos
-	var limit *memberLimit
-	seed("member-limit", `{"memberLimit":null,"canInvite":true,"isPaid":true,"memberCount":2.0,"pendingInvitationCount":0}`, &limit)
-	a.fetches[a.workspaceID+"|member-limit"].value = limit
-	seed("shares", `{"page":[{"shareId":"sh1","publisherUserId":"u2","status":"active","revision":3,"title":"Flock port","createdAt":1798761600000,"totalBytes":2048,"conversationCount":2.0,"canRevoke":true}],"isDone":true,"continueCursor":"c1"}`, &sharesPage{})
 
 	check := func(tab string, want ...string) *ui.Tester {
 		t.Helper()
@@ -804,15 +794,6 @@ func TestCloudSettings(t *testing.T) {
 	check("account", "My machines", "Studio", "Manage", "CLI Token", "build server", "Set up password sign-in")
 	a.expanded["machine/m1"] = true
 	check("machines", "Studio", "Edit machine name", "Share machine", "Remove from workspace", "Connected folders", "lody-mygo", "Connected agents", "Claude Code")
-	check("ai-usage", "1.5M", "$12.34", "Usage skyline", "By model", "claude-opus-5-5", "gpt-5", "By member", "Ada Lovelace", "Grace Hopper", "Longest streak")
-	var timeline usageTimeline
-	json.Unmarshal([]byte(`{"totals":{"tokens":1500000,"costUSD":12.34},"buckets":[{"bucketStartMs":0,"bucketLabel":"Oct 1","tokens":1500000,"costUSD":12.34,"byModel":[{"modelId":"gpt-5","tokens":1500000,"costUSD":12.34}]}]}`), &timeline)
-	a.fetches[a.workspaceID+"|usage/total"] = &fetched{value: &timeline}
-	seed("usage-calendar", `[{"dayStartMs":1798761600000,"date":"2027-01-01","tokens":1000,"costUSD":1,"isFuture":false},{"dayStartMs":1798848000000,"date":"2027-01-02","tokens":3000,"costUSD":2,"isFuture":false},{"dayStartMs":1798934400000,"date":"2027-01-03","tokens":0,"costUSD":0,"isFuture":true}]`, &[]usageDay{})
-	a.usageRange = "total"
-	check("ai-usage", "Daily average", "2K", "Peak day", "Active days", "Longest streak")
-	a.usageRange = ""
-	check("billing", "Plus", "Monthly", "Switch to yearly", "Renews on", "Jan 1, 2027", "Team members", "2 / 2")
 	check("github", "GitHub App", "1 of 1 repositories enabled", "Act as yourself", "lbr77/lody-mygo", "Private")
 	a.catalog.MCPServers = []catalog.MCPServer{
 		{ID: "x1", Name: "IDA Pro", Transport: "stdio", Connection: map[string]any{"transport": "stdio", "command": "uvx", "args": []any{"ida-mcp", "stdio"}}, EnabledByDefault: true},
@@ -929,21 +910,6 @@ func TestCloudSettings(t *testing.T) {
 		CLI: presence.Resource{CPUCores: &cores, MemoryBytes: &mem}, EffectiveMemoryBytes: 16 * (1 << 30), AvailableMemoryBytes: 8 * (1 << 30)}}}
 	check("machines", "CLI", "0.9%", "458 MB", "ACP sessions", "8.0 GB / 16 GB")
 	a.monitors = nil
-	tt := check("shares", "Flock port", "View profile for Grace Hopper")
-	if err := tt.Click("Flock port"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	tt.Advance(400 * time.Millisecond)
-	tt.Frame()
-	if err := tt.Click("Revoke share"); err != nil {
-		t.Fatalf("%v in %q", err, tt.Texts())
-	}
-	tt.Frame()
-	if !tt.HasText("The previous link will stop working. Downloaded copies cannot be recalled.") || !a.confirming.open || a.sharePages.detailOpen {
-		t.Fatalf("revoke confirmation: %q", tt.Texts())
-	}
-	a.confirming.open = false
 }
 
 func TestProviderRow(t *testing.T) {
@@ -1454,46 +1420,6 @@ func TestWorkspaceDialogs(t *testing.T) {
 	}
 }
 
-func TestReferrals(t *testing.T) {
-	a := fixture()
-	a.settingsOpen, a.settingsTab = true, "billing"
-	var billing *billingOverview
-	json.Unmarshal([]byte(`{"planTier":"plus","effectivePlanTier":"plus","billingInterval":"month","seatCount":2.0,"canManageBilling":true,"referralRewardsSupported":true}`), &billing)
-	var overview *referralOverview
-	json.Unmarshal([]byte(`{"policy":{"campaignId":"launch","discountPercent":15,"rewardPercent":20},"eligible":true,"code":null,"url":null,"issued":12345,"spent":2000,"available":10345,"frozen":0,"adjustment":0}`), &overview)
-	a.fetches = map[string]*fetched{"w1|billing": {value: billing}, "w1|referrals": {value: overview}}
-	tt := snap(t, a, "referrals", false, nil)
-	for _, want := range []string{"Referrals", "$103.45", "Available", "Details", "Create referral link"} {
-		if !tt.HasText(want) {
-			t.Fatalf("no %q in %q", want, tt.Texts())
-		}
-	}
-	a.openReferralDetails()
-	a.fetches["w1|referral-ledger|"] = &fetched{value: &referralLedger{Page: []referralEntry{
-		{ID: "e1", Kind: "reward", Amount: 12345, CreatedAt: 1798761600000},
-		{ID: "e2", Kind: "use", Amount: -2000, CreatedAt: 1798848000000},
-		{ID: "e3", Kind: "freeze", Frozen: -500, CreatedAt: 1798848000000},
-	}, ContinueCursor: "c2"}}
-	tt = snap(t, a, "referral-details", false, nil)
-	for _, want := range []string{"Referral credit", "Earned", "$123.45", "−$20", "Reward earned", "+$123.45", "Applied to invoice", "Hold released", "$5", "Older", "How it works", "They get 15% off their first payment"} {
-		if !tt.HasText(want) {
-			t.Fatalf("no %q in %q", want, tt.Texts())
-		}
-	}
-	if formatMoney(123456789, "usd") != "$1,234,567.89" || formatMoney(-50000, "usd") != "-$500" {
-		t.Fatalf("money: %s %s", formatMoney(123456789, "usd"), formatMoney(-50000, "usd"))
-	}
-	if d, r, rate := policyValues(&referralPolicy{DiscountPercent: 15, RewardPercent: 25}); d != "15" || r != "25" || rate != "8.5" {
-		t.Fatalf("policy values %s %s %s", d, r, rate)
-	}
-	a.referral.details = false
-	a.toast("success", "Referral link created and copied")
-	tt = snap(t, a, "toast", false, nil)
-	if !tt.HasText("Referral link created and copied") {
-		t.Fatalf("toast: %q", tt.Texts())
-	}
-}
-
 func TestPairingAndDevice(t *testing.T) {
 	a := fixture()
 	a.pairing = machinePairing{open: true, requestID: "r1", status: "pending", command: "npx lody@latest daemon start --auth lody_pair_x",
@@ -1578,89 +1504,6 @@ func TestGitHubProjects(t *testing.T) {
 	}
 	a.ghProject.setup.shell = "powershell"
 	snap(t, a, "github-project-ps", false, nil)
-}
-
-func TestUsageDay(t *testing.T) {
-	a := fixture()
-	a.settingsOpen, a.settingsTab, a.usageRange = true, "ai-usage", "total"
-	var timeline usageTimeline
-	json.Unmarshal([]byte(`{"totals":{"tokens":1500000,"costUSD":12.34},"buckets":[{"bucketStartMs":0,"bucketLabel":"Oct 1","tokens":1500000,"costUSD":12.34,"byModel":[{"modelId":"gpt-5","tokens":1500000,"costUSD":12.34}]}]}`), &timeline)
-	var days []usageDay
-	json.Unmarshal([]byte(`[{"dayStartMs":1798761600000,"date":"2027-01-01","tokens":1000,"costUSD":1},{"dayStartMs":1798848000000,"date":"2027-01-02","tokens":3000,"costUSD":2}]`), &days)
-	var detail *usageDayDetail
-	json.Unmarshal([]byte(`{"dayStartMs":1798848000000,"totals":{"tokens":3000,"costUSD":2,"inputTokens":1000,"outputTokens":500,"cacheReadInputTokens":1400,"cacheCreationInputTokens":0,"reasoningOutputTokens":100,"webSearchRequests":2},
-		"byModel":[{"modelId":"claude-opus-5-5","tokens":3000}],"byUser":[{"userId":"u2","tokens":3000}],"users":{"u2":{"name":"Grace Hopper"}}}`), &detail)
-	key := "w1|usage-day/" + time.UnixMilli(1798848000000).Format("2006-01-02")
-	a.fetches = map[string]*fetched{"w1|usage/total": {value: &timeline}, "w1|usage-calendar": {value: days}, key: {value: detail}}
-	a.usageDay = 1798848000000
-	tt := snap(t, a, "usage-day", false, nil)
-	tt.Advance(600 * time.Millisecond)
-	tt.Frame()
-	for _, want := range []string{"3K", "Tokens", "$2.00 · 2 web searches", "Cache", "Input", "Output", "Reasoning output", "claude-opus-5-5", "Grace Hopper"} {
-		if !tt.HasText(want) {
-			t.Fatalf("no %q in %q", want, tt.Texts())
-		}
-	}
-}
-
-func TestShareDialog(t *testing.T) {
-	a := fixture()
-	a.catalog.Sessions = append(a.catalog.Sessions,
-		catalog.Session{ID: "s5", MachineID: "m1", Title: "Sub-agent: tests", ParentSessionID: "s1"},
-		catalog.Session{ID: "s6", MachineID: "m1", Title: "Opened from tests", OpenedBySessionID: "s5"})
-	if c := shareCandidates("s1", a.catalog.Sessions); len(c) != 3 || c[0].ID != "s1" || c[1].ID != "s5" || c[2].ID != "s6" {
-		t.Fatalf("candidates %+v", c)
-	}
-	a.openShare("s1")
-	job := a.share.job
-	tt := snap(t, a, "share-loading", false, nil)
-	if !tt.HasText("Share") || !tt.HasText("Port the Flock runtime to Go") {
-		t.Fatalf("loading: %q", tt.Texts())
-	}
-	job.loaded = true
-	tt = snap(t, a, "share-setup", false, nil)
-	for _, want := range []string{"Anyone with the link can view this conversation.", "Also share 2 sub-conversations", "Images are also shared. File attachments are not included.", "Share conversation", "Cancel"} {
-		if !tt.HasText(want) {
-			t.Fatalf("no %q in %q", want, tt.Texts())
-		}
-	}
-	if !a.canCapture(job) {
-		t.Fatal("the conversation alone can be captured")
-	}
-	job.selected = []string{"s1", "s5"}
-	tt = snap(t, a, "share-partial", false, nil)
-	if !tt.HasText("Also share sub-conversations (1 of 2)") {
-		t.Fatalf("partial: %q", tt.Texts())
-	}
-	job.entry = &shareEntry{ShareID: "sh1", RootSessionID: "s1", PublisherUserID: "u1", Status: "active", Revision: 2, CredentialVersion: 1, CanManage: true, CanRevoke: true}
-	tt = snap(t, a, "share-active", false, nil)
-	for _, want := range []string{"Update share", "Revoke share", "The link credential is not saved on this device.", "Reset link"} {
-		if !tt.HasText(want) {
-			t.Fatalf("no %q in %q", want, tt.Texts())
-		}
-	}
-	job.phase, job.progress = "uploading", 42
-	if tt = snap(t, a, "share-uploading", false, nil); !tt.HasText("Uploading the copy… 42%") {
-		t.Fatalf("uploading: %q", tt.Texts())
-	}
-	job.phase, job.result = "", &shareResult{url: "https://share.lody.ai/s/sh1#access=v1." + strings.Repeat("ab", 32), copied: true}
-	if tt = snap(t, a, "share-published", false, nil); !tt.HasText("Shared. Link copied to your clipboard.") || !tt.HasText("Copy link") {
-		t.Fatalf("published: %q", tt.Texts())
-	}
-	a.share.confirming, a.share.confirmRev = "revoke", 2
-	if tt = snap(t, a, "share-confirm", false, nil); !tt.HasText("The previous link will stop working. Downloaded copies cannot be recalled.") || !tt.HasText("Confirm") {
-		t.Fatalf("confirm: %q", tt.Texts())
-	}
-	a.share = shareDialog{}
-	a.fetches["w1|share-requests/s1"] = &fetched{value: []shareRequest{{RequestID: "r1", SourceSessionID: "s1", SessionIDs: []string{"s1"}, Purpose: "Show the design review", Status: "pending"}}}
-	a.shareReqAt = map[string]time.Time{"s1": time.Now()}
-	a.view.Entries = a.view.Entries[:2]
-	tt = snap(t, a, "share-request", false, nil)
-	for _, want := range []string{"Share this conversation?", "Purpose: Show the design review", "Do not share", "Approve and share"} {
-		if !tt.HasText(want) {
-			t.Fatalf("no %q in %q", want, tt.Texts())
-		}
-	}
 }
 
 func TestProjectFiles(t *testing.T) {

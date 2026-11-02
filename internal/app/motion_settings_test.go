@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -10,69 +9,6 @@ import (
 	"github.com/lbr77/lody-mygo/internal/cloud"
 	"github.com/lbr77/lody-mygo/locales"
 )
-
-// hourlyTimeline is a range of hourly buckets from start, each using
-// tokens by its hour.
-func hourlyTimeline(start time.Time, hours int) *usageTimeline {
-	t := &usageTimeline{StartMs: float64(start.UnixMilli()), EndMs: float64(start.Add(time.Duration(hours) * time.Hour).UnixMilli()), BucketSizeMs: 3600000}
-	for h := 0; h < hours; h++ {
-		b := usageBucket{BucketStartMs: float64(start.Add(time.Duration(h) * time.Hour).UnixMilli()), Tokens: float64((h%9 + 1) * 1000), CostUSD: float64(h%5) / 10}
-		b.ByModel = append(b.ByModel, struct {
-			ModelID string  `json:"modelId"`
-			Tokens  float64 `json:"tokens"`
-			CostUSD float64 `json:"costUSD"`
-		}{fmt.Sprint("model-", h%3), b.Tokens, b.CostUSD})
-		t.Buckets = append(t.Buckets, b)
-		t.Totals.Tokens += b.Tokens
-		t.Totals.CostUSD += b.CostUSD
-	}
-	return t
-}
-
-// Switching the usage range between 24 hours and 7 days crossfades the
-// two, the day's skyline going as the week's rows sweep in; the donut
-// stays, its slices re-cut in place. Nothing moves as the card first
-// shows.
-func TestUsageRangeSwitch(t *testing.T) {
-	a := fixture()
-	a.settingsOpen, a.settingsTab, a.usageRange = true, "ai-usage", "day"
-	day := time.Date(2026, 10, 28, 0, 0, 0, 0, time.UTC)
-	a.fetches = map[string]*fetched{
-		"w1|usage/day":  {value: hourlyTimeline(day, 24)},
-		"w1|usage/week": {value: hourlyTimeline(day.Add(-6*24*time.Hour), 7*24)},
-	}
-	tt := snap(t, a, "usage-day-settled", false, nil)
-	if a.motion.rng != "day" || a.motion.rngFrom != "" {
-		t.Fatalf("first show moved: %+v", a.motion)
-	}
-	if err := tt.Click("7 days"); err != nil {
-		t.Fatalf("%v in %q", err, tt.Texts())
-	}
-	tt.Frame()
-	tt.Advance(100 * time.Millisecond)
-	tt.Frame()
-	snapFrame(t, tt, "usage-range-switching")
-	if a.motion.rng != "week" || a.motion.rngFrom != "day" {
-		t.Fatalf("no crossfade: %+v", a.motion)
-	}
-	tt.Advance(time.Second)
-	tt.Frame()
-	snapFrame(t, tt, "usage-week")
-	if a.motion.rngFrom != "" {
-		t.Fatalf("the day stays: %+v", a.motion)
-	}
-	if !tt.HasText(day.Format("Mon")) {
-		t.Fatalf("no day rows in %q", tt.Texts())
-	}
-	// Cost, then 30 days: the hourly view goes for the year's.
-	if err := tt.Click(locales.UsageCostUSD()); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	tt.Advance(time.Second)
-	tt.Frame()
-	snapFrame(t, tt, "usage-week-cost")
-}
 
 // Opening, switching and folding the home's board: the board switched
 // from drifts away as the new one comes; folded, it fades as the heading

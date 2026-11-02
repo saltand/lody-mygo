@@ -61,10 +61,9 @@ func (a *App) headerMenuRows(m *lodyMenu, s catalog.Session) {
 	if s.MachineID != "" {
 		machine = a.machineName(s.MachineID)
 	}
-	access := a.sessionAccess(&s)
 
 	// Who and where: identity stays inline, each copied on a click.
-	if github && repo != "" || showBranch || showPath || machine != "" || access != nil {
+	if github && repo != "" || showBranch || showPath || machine != "" {
 		if github && repo != "" && m.item("repo", iconGithub, repo, menuItem{tip: repo, end: copyMark}) {
 			copied(repo, locales.HmRepoCopied())
 		}
@@ -99,17 +98,6 @@ func (a *App) headerMenuRows(m *lodyMenu, s catalog.Session) {
 				ui.Text(c, where).FontSize(sizeCaption).FontWeight(500).TextColor(p.Secondary).Padding(1, 6).Radius(6).
 					Background(p.Text.Alpha(0.06)).Shrink(0)
 			}).Label(locales.HmMachineLine(machine))
-		}
-		if access != nil {
-			icon, label := iconLockKeyhole, locales.AccessChecking()
-			switch access.visibility {
-			case "team":
-				icon, label = iconUsers, locales.AccessTeamLabel()
-			case "private":
-				label = locales.AccessPrivate()
-			}
-			row := m.static("access", icon, label, nil)
-			lodyTooltip(c, p, row, access.description())
 		}
 		m.sep()
 	}
@@ -148,9 +136,6 @@ func (a *App) headerMenuRows(m *lodyMenu, s catalog.Session) {
 		})
 	}
 
-	if !a.noCloud() && a.account != nil && m.item("share", iconShare, locales.ShareTitle(), menuItem{}) {
-		a.openShare(s.ID)
-	}
 	if m.item("find", iconSearch, locales.FindInSession(), menuItem{}) {
 		a.openFind()
 	}
@@ -198,23 +183,6 @@ func (a *App) headerMenuRows(m *lodyMenu, s catalog.Session) {
 		})
 	}
 
-	// Sharing with the team, while it isn't.
-	if access != nil && access.visibility != "team" {
-		label, icon := locales.AccessShareWithTeam(), iconUsers
-		disabled := access.visibility == "unknown" || access.reason == "machine-not-registered" || !access.canManage
-		switch {
-		case access.visibility == "unknown":
-			label = locales.HmCheckingSharing()
-		case access.reason == "machine-not-registered":
-			label, icon = locales.AccessRegisterDevice(), iconMonitor
-		case !access.canManage:
-			label, icon = locales.AccessOnlyOwner(), iconLockKeyhole
-		}
-		if m.item("share-team", icon, label, menuItem{disabled: disabled}) {
-			a.shareWithTeam(&s, access)
-		}
-	}
-
 	m.submenu("copy", iconCopy, locales.Copy(), menuItem{}, 200, func(sm *lodyMenu) {
 		if baseContext {
 			if sm.item("copy-base", iconBranch, locales.HmCopyBaseBranch(), menuItem{tip: base}) {
@@ -233,9 +201,6 @@ func (a *App) headerMenuRows(m *lodyMenu, s catalog.Session) {
 			a.copySessionLink(s.ID)
 		}
 	})
-	if m.item("share-image", iconImage, locales.ShareImgMenu(), menuItem{disabled: a.view == nil}) {
-		a.startShareImage(s.ID)
-	}
 
 	m.sep()
 	if s.Archived {
@@ -369,21 +334,6 @@ func (a *App) sessionRowMenu(m *lodyMenu, s catalog.Session) {
 	if branch := strings.TrimSpace(s.BranchName); branch != "" && m.item("copy-branch", iconBranch, locales.CmdCopyBranch(), menuItem{}) {
 		writeClipboard(branch)
 		a.toast("success", locales.CmdBranchCopied())
-	}
-	if access := a.sessionAccess(&s); access != nil && access.visibility != "team" && !s.Archived {
-		label, icon := locales.AccessShareWithTeam(), iconUsers
-		ready := access.visibility == "private" && access.canManage && access.reason != "machine-not-registered"
-		switch {
-		case access.visibility == "unknown":
-			label, icon = locales.HmCheckingSharing(), iconLoader
-		case access.reason == "machine-not-registered":
-			label, icon = locales.AccessRegisterDevice(), iconLockKeyhole
-		case !access.canManage:
-			label, icon = locales.AccessOnlyOwner(), iconLockKeyhole
-		}
-		if m.item("share-team", icon, label, menuItem{disabled: !ready}) {
-			a.shareWithTeam(&s, access)
-		}
 	}
 	// The pull request the conversation describes: in a project of
 	// several, the chosen member's.

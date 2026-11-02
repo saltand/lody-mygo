@@ -37,8 +37,6 @@ func settingsSections() []settingsSection {
 			{"agent-roles", locales.SettingsAgentRoles(), iconUserCog}, {"memory", locales.SettingsMemory(), iconBrain},
 			{"mcp", "MCP", iconPlug}, {"prompt-shortcuts", "Prompt Shortcuts", iconFileText},
 			{"projects", locales.SettingsProjects(), iconFolderOpen}, {"github", "GitHub", iconGithub},
-			{"ai-usage", locales.SettingsUsage(), iconChart}, {"shares", locales.SettingsShares(), iconShare},
-			{"billing", locales.SettingsBilling(), iconCreditCard},
 		}},
 		{locales.SettingsOther(), []settingsTab{{"about", locales.SettingsAbout(), iconInfo}}},
 	}
@@ -139,12 +137,6 @@ func (a *App) settingsPage(c *ui.Context, p *palette) {
 		a.machinesPage(c, p)
 	case "github":
 		a.githubPage(c, p)
-	case "ai-usage":
-		a.usagePage(c, p)
-	case "shares":
-		a.sharesPage(c, p)
-	case "billing":
-		a.billingPage(c, p)
 	case "mcp":
 		a.mcpPage(c, p)
 	case "memory":

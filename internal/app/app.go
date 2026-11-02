@@ -80,9 +80,8 @@ type App struct {
 	listFail      listFailure               // a conversation that failed to load, as its page keeps it
 	card          hoverCard                 // the sidebar's info card
 	outline       outlineRail               // the conversation's outline rail
-	access        accessPanel               // the header's access panel
-	hmenu         menuState                 // the header's session menu
 	chatMotion    chatMotion                // what the conversation's motion keeps between frames
+	hmenu         menuState                 // the header's session menu
 	menus         map[string]*contextMenu   // drawn menus by key: rows' context menus and ⋯
 	booting       bool                      // the boot screen showed, and fades out over the app
 	bootLaid      bool                      // the boot shell's layout is known
@@ -92,7 +91,6 @@ type App struct {
 	changesView   string                    // the Changes panel's Types or Files
 	lastHomeBoard string                    // the home board last unfolded, which the line's end unfolds again
 	rolls         map[string]*roll          // figures rolling their digits, by key
-	shareImg      shareImage                // "Share as image…": the messages picked, then their preview
 	binaries      map[string]binaryProgress // what machines said of runtime downloads, by machine/agent
 	motion        settingsMotion            // what the settings' and the home's motion keeps between frames
 	attachPrev    attachPreview             // a text file's preview
@@ -162,7 +160,6 @@ type App struct {
 	composerSel      [2]int                   // the composer's selection, as last built
 	tabGroups        map[string]*tabGroup     // conversation tabs, by the session they sit beside
 	activeDraft      string                   // the draft tab shown, if one is
-	msgShare         messageShare             // a reply made an image
 	createMem        map[string]*createMemory // New chat's remembered choices, by user and workspace
 	memProject       string                   // the project New chat last restored for
 	memAgentModel    string                   // the agent and model it last remembered
@@ -225,8 +222,6 @@ type App struct {
 	settingsError    string
 	settingsNotice   string // what a settings action did
 	avatarBusy       string // the avatar uploading: user or workspace
-	usageRange       string
-	usageCost        bool // the usage charts show cost rather than tokens
 	editingName      bool
 	nameDraft        string
 	agentsMachine    string // the machine whose agents Settings shows
@@ -262,13 +257,9 @@ type App struct {
 	deletion         accountDeletion
 	wsCreate         workspaceCreate
 	wsJoin           workspaceJoin
-	referral         referrals
 	pairing          machinePairing
 	ghProject        githubProject
-	activeDay        string  // workspace|date the user was last counted active
-	usageDay         float64 // the usage day opened, its start in ms
-	usageDayShown    float64 // the day the panel shows, as it folds away too
-	share            shareDialog
+	activeDay        string // workspace|date the user was last counted active
 	archiveArm       string                // the row whose archive button asks to be clicked again
 	archiveArmAt     time.Time             // since when
 	marks            map[string]*markState // the rows' working marks, by session
@@ -276,9 +267,7 @@ type App struct {
 	membershipAt     time.Time             // when it was last asked
 	membershipAsking bool
 	userNames        map[string]string    // people outside the members list, by id
-	shareJobs        map[string]*shareJob // an agent's share requests being answered, by request
 	asks             map[string]*askCard  // question cards, live and read only, by request
-	shareReqAt       map[string]time.Time // when each conversation's requests were last read
 	ghProfileAsked   map[string]bool      // workspaces whose GitHub profile was refreshed
 	device           deviceAuth
 	toasts           []ui.Toast // to show with the next frame
@@ -288,7 +277,6 @@ type App struct {
 	inboxAt          time.Time             // when the inbox was last asked for
 	pings            map[string]*pingState // machines' round trips
 	sidebarWidth     float32               // as dragged; 0 is the default
-	sharePages       sharePaging           // the published shares' pages in settings
 	link             *linkTarget           // a lody:// link waiting until it can open
 	linkDefault      linkDefault           // whether lody:// links open in this app
 	claim            machineClaim          // a pairing request a lody:// link asked this machine to take

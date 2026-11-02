@@ -4,8 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/egoist/mygo/ui"
-
 	"github.com/lbr77/lody-mygo/internal/catalog"
 )
 
@@ -40,35 +38,5 @@ func TestArchiveGroupFold(t *testing.T) {
 	tt.Frame()
 	if !tt.HasText("Old experiment") {
 		t.Fatalf("unfolded group shows no rows: %q", tt.Texts())
-	}
-}
-
-// The share-image segments pick, their ink and raised fill moving to the
-// choice over 120ms.
-func TestShareTrackFades(t *testing.T) {
-	st := &shareImage{}
-	selected := "a"
-	opts := []option{{"a", "Light"}, {"b", "Dark"}}
-	tt := ui.NewTester(func(c *ui.Context) {
-		p := applyTheme(c)
-		st.shareTrack(c, p, "theme", opts, selected, 56, false, func(id string) { selected = id })
-	}, 300, 100)
-	tt.Frame()
-	tt.Advance(300 * time.Millisecond)
-	tt.Frame()
-	if err := tt.Click("Dark"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	if selected != "b" {
-		t.Fatalf("picked %q", selected)
-	}
-	// Halfway, the old choice's ink is still on its way back.
-	tt.Advance(60 * time.Millisecond)
-	tt.Frame()
-	tt.Advance(200 * time.Millisecond)
-	tt.Frame()
-	if !tt.HasText("Dark") || !tt.HasText("Light") {
-		t.Fatalf("segments: %q", tt.Texts())
 	}
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/lbr77/lody-mygo/internal/catalog"
-	"github.com/lbr77/lody-mygo/internal/cloud"
 	"github.com/lbr77/lody-mygo/internal/session"
 )
 
@@ -478,63 +477,6 @@ func TestOutlineRail(t *testing.T) {
 	tt.Frame()
 	if _, ok := tt.Find("Question number 4"); ok {
 		t.Fatal("rail beside a narrow pane")
-	}
-}
-
-// The header's Share pill opens Lody's access panel: who can open the
-// conversation, the audiences, and the copies; the web slides to the
-// publishing view, and back.
-func TestAccessPanel(t *testing.T) {
-	a := fixture()
-	a.offline = false
-	s := &a.catalog.Sessions[0]
-	s.Project = map[string]any{"kind": "local", "localProjectId": "p1"}
-	ws := a.workspaceID + "|"
-	a.fetches = map[string]*fetched{
-		ws + "members":  {value: []cloud.Member{{UserID: "u1"}, {UserID: "u2"}}},
-		ws + "machines": {value: []visibleMachine{{MachineID: "m1", OwnerUserID: "u1", UpdatedAt: 1}}},
-		ws + "projects": {value: []visibleProject{{MachineID: "m1", LocalProjectID: "p1", OwnerUserID: "u1", SharedWithTeam: true}}},
-	}
-	tt := snap(t, a, "access-closed", false, nil)
-	if err := tt.Click("Share"); err != nil {
-		t.Fatalf("no pill: %v in %q", err, tt.Texts())
-	}
-	tt.Frame()
-	tt.Advance(700 * time.Millisecond)
-	tt.Frame()
-	snapFrame(t, tt, "access-panel")
-	for _, want := range []string{"Private to you", "Studio is not shared with the team.", "Only you", "Team", "Web", "Copy URL", "Copy as Markdown"} {
-		if !tt.HasText(want) {
-			t.Errorf("missing %q in %q", want, tt.Texts())
-		}
-	}
-	if err := tt.Click("Web"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	tt.Advance(700 * time.Millisecond)
-	tt.Frame()
-	snapFrame(t, tt, "access-publish")
-	if a.access.view != "publish" || !tt.HasText("Publish to the web") {
-		t.Fatalf("not publishing: %q", tt.Texts())
-	}
-	// The panel's way back sits before its title (the sidebar has a Back
-	// of its own).
-	head, _ := tt.Find("Publish to the web")
-	tt.ClickAt(head.X-16, head.Y+head.H/2)
-	tt.Frame()
-	tt.Advance(700 * time.Millisecond)
-	tt.Frame()
-	if a.access.view != "home" || !tt.HasText("Private to you") {
-		t.Fatalf("not back: %q", tt.Texts())
-	}
-	// Choosing the team asks first.
-	if err := tt.Click("Team"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	if !a.confirming.open || a.confirming.title != "Share “Port the Flock runtime to Go” with the team?" {
-		t.Fatalf("no confirmation: %+v", a.confirming)
 	}
 }
 
